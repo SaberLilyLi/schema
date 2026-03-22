@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.local
+.env
+.DS_Store
+frontend/src/auto-imports.d.ts
+frontend/src/components.d.ts
