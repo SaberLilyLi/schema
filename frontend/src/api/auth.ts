@@ -17,6 +17,6 @@ export async function register(payload: {
 }
 
 export async function fetchMe() {
-  const { data } = await http.get<ApiEnvelope<MeData>>('/auth/me')
+  const { data } = await http.post<ApiEnvelope<MeData>>('/auth/me')
   return data.data
 }

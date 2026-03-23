@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import CommonPages from '@/components/common/commonPages/CommonPages.vue'
@@ -20,8 +20,8 @@ const pageSize = ref(20)
 const total = ref(0)
 const searchModest = ref<Record<string, unknown>>({})
 const searchItems: SearchItemConfig[] = []
-const canApprove = userStore.hasPermission('approval:approve')
-const canSubmit = userStore.hasPermission('kb:submit')
+const canApprove = computed(() => userStore.hasPermission('approval:approve'))
+const canSubmit = computed(() => userStore.hasPermission('kb:submit'))
 
 const columns: CommonTableColumn[] = [
   { key: 'articleNo', prop: 'articleNo', label: '编号', width: 150, showOverflowTooltip: true },
@@ -35,13 +35,13 @@ const columns: CommonTableColumn[] = [
 async function load() {
   loading.value = true
   try {
-    if (activeTab.value === 'pending' && !canApprove) {
+    if (activeTab.value === 'pending' && !canApprove.value) {
       items.value = []
       total.value = 0
       return
     }
 
-    if (activeTab.value === 'initiated' && !canSubmit) {
+    if (activeTab.value === 'initiated' && !canSubmit.value) {
       items.value = []
       total.value = 0
       return
@@ -61,11 +61,20 @@ async function load() {
 }
 
 onMounted(() => {
-  if (!canApprove) {
+  if (!canApprove.value) {
     activeTab.value = 'initiated'
   }
   load()
 })
+
+watch(
+  () => [canApprove.value, canSubmit.value],
+  ([approve, submit]) => {
+    if (!approve && activeTab.value === 'pending') {
+      activeTab.value = submit ? 'initiated' : 'pending'
+    }
+  },
+)
 
 function onTabChange() {
   page.value = 1

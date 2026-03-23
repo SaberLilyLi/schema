@@ -119,3 +119,42 @@ export interface ApprovalListData {
   total: number
   items: ApprovalListItem[]
 }
+
+export interface AuditLogListItem {
+  id: string
+  seq: number
+  occurredAt: string
+  action: string
+  actorUsername: string
+  resourceType: string
+  resourceId: string
+  success: boolean
+  statusCode: number | null
+  requestId: string
+}
+
+export interface AuditLogListData {
+  page: number
+  pageSize: number
+  total: number
+  items: AuditLogListItem[]
+}
+
+export interface AuditLogDetailData {
+  id: string
+  seq: number
+  occurredAt: string
+  action: string
+  actorUserId: string | null
+  actorUsername: string
+  resourceType: string
+  resourceId: string
+  ip: string
+  userAgent: string
+  requestId: string
+  statusCode: number | null
+  success: boolean
+  details: Record<string, unknown>
+  prevHash: string
+  recordHash: string
+}

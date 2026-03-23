@@ -12,9 +12,18 @@ import {
   Moon,
   Grid,
   Stamp,
+  DataAnalysis,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
+
+interface MenuItemConfig {
+  index: string
+  label: string
+  icon: unknown
+  requiredPermissions?: string[]
+  permissionMode?: 'all' | 'any'
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -22,11 +31,54 @@ const userStore = useUserStore()
 const theme = useTheme()
 
 const collapsed = ref(false)
+const menuItems: MenuItemConfig[] = [
+  { index: '/dashboard', label: '首页', icon: House },
+  {
+    index: '/knowledge',
+    label: '知识库',
+    icon: Reading,
+    requiredPermissions: ['kb:read'],
+    permissionMode: 'all',
+  },
+  {
+    index: '/knowledge/create',
+    label: '新建知识',
+    icon: Plus,
+    requiredPermissions: ['kb:create'],
+    permissionMode: 'all',
+  },
+  {
+    index: '/approval-center',
+    label: '审批中心',
+    icon: Stamp,
+    requiredPermissions: ['kb:submit', 'approval:approve'],
+    permissionMode: 'any',
+  },
+  {
+    index: '/audit-center',
+    label: '审计中心',
+    icon: DataAnalysis,
+    requiredPermissions: ['audit:read'],
+    permissionMode: 'all',
+  },
+  { index: '/common-components', label: '组件展示', icon: Grid },
+]
+
+function canShowMenu(menu: MenuItemConfig) {
+  if (!menu.requiredPermissions?.length) return true
+  if (menu.permissionMode === 'any') {
+    return menu.requiredPermissions.some((perm) => userStore.hasPermission(perm))
+  }
+  return menu.requiredPermissions.every((perm) => userStore.hasPermission(perm))
+}
+
+const visibleMenuItems = computed(() => menuItems.filter((menu) => canShowMenu(menu)))
 
 const activeMenu = computed(() => {
   const p = route.path
   if (p.startsWith('/knowledge/create')) return '/knowledge/create'
   if (p.startsWith('/approval-center')) return '/approval-center'
+  if (p.startsWith('/audit-center')) return '/audit-center'
   if (p.startsWith('/knowledge/') && p !== '/knowledge') {
     return '/knowledge'
   }
@@ -55,34 +107,13 @@ function logout() {
         router
         class="layout__menu"
       >
-        <el-menu-item index="/dashboard">
-          <el-icon><House /></el-icon>
-          <span>首页</span>
-        </el-menu-item>
         <el-menu-item
-          v-if="userStore.hasPermission('kb:read')"
-          index="/knowledge"
+          v-for="menu in visibleMenuItems"
+          :key="menu.index"
+          :index="menu.index"
         >
-          <el-icon><Reading /></el-icon>
-          <span>知识库</span>
-        </el-menu-item>
-        <el-menu-item
-          v-if="userStore.hasPermission('kb:create')"
-          index="/knowledge/create"
-        >
-          <el-icon><Plus /></el-icon>
-          <span>新建知识</span>
-        </el-menu-item>
-        <el-menu-item
-          v-if="userStore.hasPermission('kb:submit') || userStore.hasPermission('approval:approve')"
-          index="/approval-center"
-        >
-          <el-icon><Stamp /></el-icon>
-          <span>审批中心</span>
-        </el-menu-item>
-        <el-menu-item index="/common-components">
-          <el-icon><Grid /></el-icon>
-          <span>组件展示</span>
+          <el-icon><component :is="menu.icon" /></el-icon>
+          <span>{{ menu.label }}</span>
         </el-menu-item>
       </el-menu>
     </el-aside>

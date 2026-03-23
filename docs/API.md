@@ -12,7 +12,7 @@
 
 ### 1.2 响应信封（Envelope）
 
-除 **`GET /api/health`** 外，成功与失败均采用统一 JSON 结构：
+除 **`POST /api/health`** 外，成功与失败均采用统一 JSON 结构：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -45,7 +45,7 @@
 
 ### 1.3 健康检查（兼容格式）
 
-`GET /api/health` **不**使用上述信封，直接返回：
+`POST /api/health` **不**使用上述信封，直接返回：
 
 ```json
 {
@@ -93,7 +93,7 @@ Authorization: Bearer <accessToken>
 
 | 项目 | 说明 |
 |------|------|
-| **URL** | `GET /api/health` |
+| **URL** | `POST /api/health` |
 | **认证** | 不需要 |
 
 **响应：** 见 §1.3。
@@ -151,7 +151,7 @@ Content-Type: application/json
 
 | 项目 | 说明 |
 |------|------|
-| **URL** | `GET /api/auth/me` |
+| **URL** | `POST /api/auth/me` |
 | **认证** | 需要 `Authorization: Bearer` |
 
 **成功 `data`：**
@@ -181,7 +181,7 @@ Content-Type: application/json
 
 | 项目 | 说明 |
 |------|------|
-| **URL** | `GET /api/articles` |
+| **URL** | `POST /api/articles/query` |
 | **认证** | 需要 Bearer |
 | **权限** | `kb:read` |
 
@@ -220,7 +220,7 @@ Content-Type: application/json
 
 | 项目 | 说明 |
 |------|------|
-| **URL** | `GET /api/articles/:id` |
+| **URL** | `POST /api/articles/detail/:id` |
 | **认证** | 需要 Bearer |
 | **权限** | `kb:read` |
 
@@ -268,7 +268,7 @@ Content-Type: application/json
 
 | 项目 | 说明 |
 |------|------|
-| **URL** | `POST /api/articles` |
+| **URL** | `POST /api/articles/create` |
 | **认证** | 需要 Bearer |
 | **权限** | `kb:create` |
 | **Content-Type** | `application/json` |
@@ -294,6 +294,93 @@ Content-Type: application/json
 | `currentVersionId` | string | 首版版本 ID |
 
 新建后知识状态为 **`draft`**，首版 `workflowState` 为 **`draft`**。
+
+---
+
+### 2.7 审计日志列表（分页 + 筛选）
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/audit/logs` |
+| **认证** | 需要 Bearer |
+| **权限** | `audit:read` |
+
+**Query 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `page` | number | 否 | 页码，默认 `1`，最小 `1` |
+| `pageSize` | number | 否 | 每页条数，默认 `20`，范围 `1`～`100` |
+| `actor` | string | 否 | 操作人用户名，模糊匹配 |
+| `action` | string | 否 | 动作，精确匹配 |
+| `resourceType` | string | 否 | 资源类型，精确匹配 |
+| `requestId` | string | 否 | 请求 ID，精确匹配 |
+| `success` | string | 否 | `true` / `false` |
+| `startAt` | string | 否 | 开始时间（ISO） |
+| `endAt` | string | 否 | 结束时间（ISO） |
+
+**成功 `data`：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `page` | number | 当前页 |
+| `pageSize` | number | 每页条数 |
+| `total` | number | 总条数 |
+| `items` | array | 列表项 |
+| `items[].id` | string | 审计日志 ID |
+| `items[].seq` | number | 审计序号 |
+| `items[].occurredAt` | string | 发生时间 |
+| `items[].action` | string | 动作 |
+| `items[].actorUsername` | string | 操作人用户名 |
+| `items[].resourceType` | string | 资源类型 |
+| `items[].resourceId` | string | 资源标识 |
+| `items[].success` | boolean | 是否成功 |
+| `items[].statusCode` | number \| null | 状态码 |
+| `items[].requestId` | string | 请求 ID |
+
+---
+
+### 2.8 审计日志详情
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/audit/logs/:id` |
+| **认证** | 需要 Bearer |
+| **权限** | `audit:read` |
+
+**路径参数：**
+
+| 参数 | 说明 |
+|------|------|
+| `id` | 审计日志 MongoDB `ObjectId` |
+
+**成功 `data`：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 审计日志 ID |
+| `seq` | number | 审计序号 |
+| `occurredAt` | string | 发生时间 |
+| `action` | string | 动作 |
+| `actorUserId` | string \| null | 操作人 ID |
+| `actorUsername` | string | 操作人用户名 |
+| `resourceType` | string | 资源类型 |
+| `resourceId` | string | 资源标识 |
+| `ip` | string | 客户端 IP |
+| `userAgent` | string | User-Agent |
+| `requestId` | string | 请求 ID |
+| `statusCode` | number \| null | 状态码 |
+| `success` | boolean | 是否成功 |
+| `details` | object | 业务详情 |
+| `prevHash` | string | 前一条日志哈希 |
+| `recordHash` | string | 当前日志哈希 |
+
+**常见错误：**
+
+| HTTP | code | message |
+|------|------|---------|
+| 400 | 40002 | 无效的审计日志 ID |
+| 404 | 40402 | 审计日志不存在 |
 
 ---
 

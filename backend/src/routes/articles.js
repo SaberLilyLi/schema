@@ -36,14 +36,14 @@ async function getArticleAndCurrentVersionOrFail(id) {
   return { article, version }
 }
 
-articlesRouter.get(
-  '/',
+articlesRouter.post(
+  '/query',
   authenticate,
   requirePermission('kb:read'),
   async (req, res) => {
-    const page = Math.max(1, Number(req.query.page) || 1)
-    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20))
-    const { q, domain, status } = req.query
+    const page = Math.max(1, Number(req.body?.page) || 1)
+    const pageSize = Math.min(100, Math.max(1, Number(req.body?.pageSize) || 20))
+    const { q, domain, status } = req.body ?? {}
 
     const filter = {}
     if (domain) filter.domain = String(domain)
@@ -110,13 +110,13 @@ articlesRouter.get(
   },
 )
 
-articlesRouter.get(
+articlesRouter.post(
   '/approval/pending',
   authenticate,
   requirePermission('approval:approve'),
   async (req, res) => {
-    const page = Math.max(1, Number(req.query.page) || 1)
-    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20))
+    const page = Math.max(1, Number(req.body?.page) || 1)
+    const pageSize = Math.min(100, Math.max(1, Number(req.body?.pageSize) || 20))
 
     const versions = await ArticleVersion.find({
       workflowState: WORKFLOW_STATE.SUBMITTED,
@@ -167,13 +167,13 @@ articlesRouter.get(
   },
 )
 
-articlesRouter.get(
+articlesRouter.post(
   '/approval/initiated',
   authenticate,
   requirePermission('kb:submit'),
   async (req, res) => {
-    const page = Math.max(1, Number(req.query.page) || 1)
-    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20))
+    const page = Math.max(1, Number(req.body?.page) || 1)
+    const pageSize = Math.min(100, Math.max(1, Number(req.body?.pageSize) || 20))
 
     const versions = await ArticleVersion.find({
       submittedBy: req.userId,
@@ -228,7 +228,7 @@ articlesRouter.get(
   },
 )
 
-articlesRouter.get(
+articlesRouter.post(
   '/:id/versions',
   authenticate,
   requirePermission('kb:read'),
@@ -269,7 +269,7 @@ articlesRouter.get(
   },
 )
 
-articlesRouter.get(
+articlesRouter.post(
   '/:id/versions/:vid',
   authenticate,
   requirePermission('kb:read'),
@@ -504,8 +504,8 @@ articlesRouter.post(
   },
 )
 
-articlesRouter.get(
-  '/:id',
+articlesRouter.post(
+  '/detail/:id',
   authenticate,
   requirePermission('kb:read'),
   async (req, res) => {
@@ -567,7 +567,7 @@ articlesRouter.get(
 )
 
 articlesRouter.post(
-  '/',
+  '/create',
   authenticate,
   requirePermission('kb:create'),
   async (req, res) => {

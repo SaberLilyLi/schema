@@ -46,3 +46,26 @@
 - 首次使用前可执行：`cd backend && npm run seed`
 - 如需重置角色/账号，重新执行 `seed` 会覆盖默认数据
 - 演示结束后建议修改默认密码，避免长期使用弱口令
+
+## 6. 左侧菜单可见性与权限映射
+
+| 菜单项 | 路由 | 可见权限规则 |
+|---|---|---|
+| 首页 | `/dashboard` | 登录后默认可见 |
+| 知识库 | `/knowledge` | 需要 `kb:read` |
+| 新建知识 | `/knowledge/create` | 需要 `kb:create` |
+| 审批中心 | `/approval-center` | 需要 `kb:submit` 或 `approval:approve` 任一权限 |
+| 审计中心 | `/audit-center` | 需要 `audit:read` |
+| 组件展示 | `/common-components` | 登录后默认可见（演示页） |
+
+> 前端实现位置：`frontend/src/layouts/MainLayout.vue`，已改为“菜单配置 + 权限规则”统一控制，避免分散在多个 `v-if` 中。
+
+### 审批中心页签权限
+
+- “待我审批”页签：仅 `approval:approve` 可见
+- “我发起的”页签：仅 `kb:submit` 可见
+
+## 7. 权限变更维护约定
+
+- 之后凡是涉及权限点新增/删除、角色权限调整、菜单显示逻辑调整，都必须同步更新本文件。
+- 同时新增对应需求变更记录文档，命名规则统一为：`任务名_版本.md`。

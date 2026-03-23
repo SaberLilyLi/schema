@@ -18,14 +18,12 @@ export interface ArticleListQuery {
 }
 
 export async function fetchArticleList(params: ArticleListQuery) {
-  const { data } = await http.get<ApiEnvelope<ArticleListData>>('/articles', {
-    params,
-  })
+  const { data } = await http.post<ApiEnvelope<ArticleListData>>('/articles/query', params)
   return data.data
 }
 
 export async function fetchArticleDetail(id: string) {
-  const { data } = await http.get<ApiEnvelope<ArticleDetailData>>(`/articles/${id}`)
+  const { data } = await http.post<ApiEnvelope<ArticleDetailData>>(`/articles/detail/${id}`)
   return data.data
 }
 
@@ -38,12 +36,12 @@ export async function createArticle(payload: {
   changeSummary?: string
   visibilityPolicy?: Record<string, unknown>
 }) {
-  const { data } = await http.post<ApiEnvelope<CreateArticleData>>('/articles', payload)
+  const { data } = await http.post<ApiEnvelope<CreateArticleData>>('/articles/create', payload)
   return data.data
 }
 
 export async function fetchArticleVersions(id: string) {
-  const { data } = await http.get<ApiEnvelope<ArticleVersionItem[]>>(
+  const { data } = await http.post<ApiEnvelope<ArticleVersionItem[]>>(
     `/articles/${id}/versions`,
   )
   return data.data
@@ -79,17 +77,17 @@ export async function publishArticle(id: string) {
 }
 
 export async function fetchApprovalPending(params: { page?: number; pageSize?: number }) {
-  const { data } = await http.get<ApiEnvelope<ApprovalListData>>(
+  const { data } = await http.post<ApiEnvelope<ApprovalListData>>(
     '/articles/approval/pending',
-    { params },
+    params,
   )
   return data.data
 }
 
 export async function fetchApprovalInitiated(params: { page?: number; pageSize?: number }) {
-  const { data } = await http.get<ApiEnvelope<ApprovalListData>>(
+  const { data } = await http.post<ApiEnvelope<ApprovalListData>>(
     '/articles/approval/initiated',
-    { params },
+    params,
   )
   return data.data
 }

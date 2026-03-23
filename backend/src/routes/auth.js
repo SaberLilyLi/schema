@@ -211,7 +211,7 @@ authRouter.post('/login', async (req, res) => {
   })
 })
 
-authRouter.get('/me', authenticate, async (req, res) => {
+authRouter.post('/me', authenticate, async (req, res) => {
   const u = await User.findById(req.userId).lean()
   if (!u) return fail(res, '用户不存在', 40401, 404)
   return ok(res, {

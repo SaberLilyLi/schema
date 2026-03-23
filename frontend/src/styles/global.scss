@@ -12,18 +12,36 @@ body,
 }
 
 body {
-  font-family:
-    system-ui,
-    -apple-system,
+  --kb-font-family:
+    'Microsoft YaHei',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Noto Sans CJK SC',
+    'Source Han Sans SC',
     'Segoe UI',
     Roboto,
     'Helvetica Neue',
     Arial,
-    'Noto Sans',
     sans-serif;
+  --kb-mono-font-family:
+    'Cascadia Mono',
+    'Consolas',
+    'Microsoft YaHei UI',
+    'Noto Sans Mono CJK SC',
+    ui-monospace,
+    monospace;
+  --el-font-family: var(--kb-font-family);
+  font-family:
+    var(--kb-font-family);
   background-color: var(--el-bg-color-page);
   color: var(--el-text-color-primary);
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+code,
+pre,
+textarea {
+  font-family: var(--kb-mono-font-family);
 }
 
 html.dark body {

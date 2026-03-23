@@ -44,6 +44,12 @@ const router = createRouter({
           meta: { title: '审批中心', permission: 'kb:read' },
         },
         {
+          path: 'audit-center',
+          name: 'audit-center',
+          component: () => import('@/views/audit/AuditCenterView.vue'),
+          meta: { title: '审计中心', permission: 'audit:read' },
+        },
+        {
           path: 'knowledge/create',
           name: 'knowledge-create',
           component: () => import('@/views/knowledge/ArticleEditorView.vue'),
