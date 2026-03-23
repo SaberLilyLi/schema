@@ -1,18 +1,30 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { ElMessage } from 'element-plus'
-import { fetchArticleDetail } from '@/api/articles'
-import type { ArticleDetailData } from '@/types/api'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  approveArticle,
+  fetchArticleDetail,
+  fetchArticleVersions,
+  publishArticle,
+  rejectArticle,
+  submitArticle,
+} from '@/api/articles'
+import type { ArticleDetailData, ArticleVersionItem } from '@/types/api'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const loading = ref(true)
 const detail = ref<ArticleDetailData | null>(null)
 const htmlContent = ref('')
+const versions = ref<ArticleVersionItem[]>([])
+const versionsVisible = ref(false)
+const actionLoading = ref(false)
 
 async function load() {
   const id = route.params.id as string
@@ -22,6 +34,7 @@ async function load() {
   try {
     const data = await fetchArticleDetail(id)
     detail.value = data
+    versions.value = await fetchArticleVersions(id)
     const md = data.currentVersion?.contentMd ?? ''
     if (md) {
       const raw = await marked.parse(md)
@@ -47,6 +60,96 @@ watch(
 function back() {
   router.push({ name: 'knowledge-list' })
 }
+
+const canSubmit = computed(
+  () =>
+    userStore.hasPermission('kb:submit') &&
+    ['draft', 'rejected'].includes(
+      detail.value?.currentVersion?.workflowState || '',
+    ),
+)
+const canApprove = computed(
+  () =>
+    userStore.hasPermission('approval:approve') &&
+    detail.value?.currentVersion?.workflowState === 'submitted',
+)
+const canReject = computed(
+  () =>
+    userStore.hasPermission('approval:approve') &&
+    ['submitted', 'approved'].includes(
+      detail.value?.currentVersion?.workflowState || '',
+    ),
+)
+const canPublish = computed(
+  () =>
+    userStore.hasPermission('kb:publish') &&
+    ['approved'].includes(
+      detail.value?.currentVersion?.workflowState || '',
+    ),
+)
+
+async function doSubmit() {
+  if (!detail.value) return
+  actionLoading.value = true
+  try {
+    await submitArticle(detail.value.id)
+    ElMessage.success('提交审批成功')
+    await load()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '提交失败')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function doApprove() {
+  if (!detail.value) return
+  actionLoading.value = true
+  try {
+    await approveArticle(detail.value.id)
+    ElMessage.success('审批通过')
+    await load()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '审批失败')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function doReject() {
+  if (!detail.value) return
+  try {
+    const reason = await ElMessageBox.prompt('请输入驳回原因', '驳回版本', {
+      confirmButtonText: '确认驳回',
+      cancelButtonText: '取消',
+      inputPlaceholder: '例如：正文不完整，需要补充附件',
+    })
+    actionLoading.value = true
+    await rejectArticle(detail.value.id, reason.value.trim())
+    ElMessage.success('已驳回')
+    await load()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error(e instanceof Error ? e.message : '驳回失败')
+    }
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function doPublish() {
+  if (!detail.value) return
+  actionLoading.value = true
+  try {
+    await publishArticle(detail.value.id)
+    ElMessage.success('发布成功')
+    await load()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '发布失败')
+  } finally {
+    actionLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -66,6 +169,48 @@ function back() {
             type="success"
           >已发布</el-tag>
           <el-tag v-else size="small" type="warning">{{ detail.status }}</el-tag>
+          <el-button
+            size="small"
+            @click="versionsVisible = true"
+          >
+            版本列表
+          </el-button>
+          <el-button
+            v-if="canSubmit"
+            type="primary"
+            size="small"
+            :loading="actionLoading"
+            @click="doSubmit"
+          >
+            提交审批
+          </el-button>
+          <el-button
+            v-if="canApprove"
+            type="success"
+            size="small"
+            :loading="actionLoading"
+            @click="doApprove"
+          >
+            审批通过
+          </el-button>
+          <el-button
+            v-if="canReject"
+            type="warning"
+            size="small"
+            :loading="actionLoading"
+            @click="doReject"
+          >
+            驳回
+          </el-button>
+          <el-button
+            v-if="canPublish"
+            type="danger"
+            size="small"
+            :loading="actionLoading"
+            @click="doPublish"
+          >
+            发布
+          </el-button>
         </template>
       </el-page-header>
 
@@ -90,6 +235,25 @@ function back() {
         <el-empty v-else description="暂无正文" />
       </el-card>
     </template>
+
+    <el-drawer
+      v-model="versionsVisible"
+      title="版本列表"
+      size="520px"
+    >
+      <el-table :data="versions" stripe>
+        <el-table-column prop="versionNo" label="版本号" width="80">
+          <template #default="{ row }">v{{ row.versionNo }}</template>
+        </el-table-column>
+        <el-table-column prop="workflowState" label="流程状态" width="120" />
+        <el-table-column prop="changeSummary" label="变更说明" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="publishedAt" label="发布时间" width="170">
+          <template #default="{ row }">
+            {{ row.publishedAt ? row.publishedAt.replace('T', ' ').slice(0, 19) : '-' }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-drawer>
   </div>
 </template>
 

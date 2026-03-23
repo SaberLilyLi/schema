@@ -38,6 +38,12 @@ const router = createRouter({
           meta: { title: '知识库', permission: 'kb:read' },
         },
         {
+          path: 'approval-center',
+          name: 'approval-center',
+          component: () => import('@/views/approval/ApprovalCenterView.vue'),
+          meta: { title: '审批中心', permission: 'kb:read' },
+        },
+        {
           path: 'knowledge/create',
           name: 'knowledge-create',
           component: () => import('@/views/knowledge/ArticleEditorView.vue'),
@@ -48,6 +54,12 @@ const router = createRouter({
           name: 'knowledge-detail',
           component: () => import('@/views/knowledge/ArticleDetailView.vue'),
           meta: { title: '知识详情', permission: 'kb:read' },
+        },
+        {
+          path: 'common-components',
+          name: 'common-components',
+          component: () => import('@/views/common/CommonComponentsDemoView.vue'),
+          meta: { title: '组件展示' },
         },
         {
           path: '403',

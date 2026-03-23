@@ -38,6 +38,7 @@ export interface ArticleListItem {
   domain: string
   classification: string
   status: string
+  workflowState?: string | null
   updatedAt: string
   tags: string[]
 }
@@ -79,4 +80,42 @@ export interface CreateArticleData {
   id: string
   articleNo: string
   currentVersionId: string
+}
+
+export interface ArticleVersionItem {
+  id: string
+  versionNo: number
+  workflowState: string
+  changeSummary: string
+  submittedAt: string | null
+  approvedAt: string | null
+  publishedAt: string | null
+}
+
+export interface WorkflowActionData {
+  articleId: string
+  status: string
+  workflowState: string
+}
+
+export interface ApprovalListItem {
+  id: string
+  articleNo: string
+  title: string
+  domain: string
+  classification: string
+  status: string
+  workflowState: string
+  versionNo: number
+  submittedAt: string | null
+  approvedAt?: string | null
+  publishedAt?: string | null
+  updatedAt: string
+}
+
+export interface ApprovalListData {
+  page: number
+  pageSize: number
+  total: number
+  items: ApprovalListItem[]
 }

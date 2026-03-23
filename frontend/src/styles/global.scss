@@ -21,4 +21,11 @@ body {
     Arial,
     'Noto Sans',
     sans-serif;
+  background-color: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
+  background-color: var(--el-bg-color-page);
 }

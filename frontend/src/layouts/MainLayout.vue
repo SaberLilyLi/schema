@@ -8,22 +8,30 @@ import {
   Reading,
   Plus,
   ArrowDown,
+  Sunny,
+  Moon,
+  Grid,
+  Stamp,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { useTheme } from '@/composables/useTheme'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const theme = useTheme()
 
 const collapsed = ref(false)
 
 const activeMenu = computed(() => {
   const p = route.path
   if (p.startsWith('/knowledge/create')) return '/knowledge/create'
+  if (p.startsWith('/approval-center')) return '/approval-center'
   if (p.startsWith('/knowledge/') && p !== '/knowledge') {
     return '/knowledge'
   }
   if (p.startsWith('/knowledge')) return '/knowledge'
+  if (p.startsWith('/common-components')) return '/common-components'
   if (p.startsWith('/dashboard')) return '/dashboard'
   return p
 })
@@ -65,6 +73,17 @@ function logout() {
           <el-icon><Plus /></el-icon>
           <span>新建知识</span>
         </el-menu-item>
+        <el-menu-item
+          v-if="userStore.hasPermission('kb:submit') || userStore.hasPermission('approval:approve')"
+          index="/approval-center"
+        >
+          <el-icon><Stamp /></el-icon>
+          <span>审批中心</span>
+        </el-menu-item>
+        <el-menu-item index="/common-components">
+          <el-icon><Grid /></el-icon>
+          <span>组件展示</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container direction="vertical" class="layout__right">
@@ -86,6 +105,18 @@ function logout() {
           </el-breadcrumb-item>
         </el-breadcrumb>
         <div class="layout__spacer" />
+        <el-tooltip :content="theme.themeLabel" placement="bottom">
+          <el-button
+            text
+            class="layout__theme-btn"
+            @click="theme.toggleTheme"
+          >
+            <el-icon :size="18">
+              <Moon v-if="theme.isDark" />
+              <Sunny v-else />
+            </el-icon>
+          </el-button>
+        </el-tooltip>
         <el-dropdown trigger="click">
           <span class="layout__user">
             {{ userStore.displayLabel }}
@@ -157,6 +188,10 @@ function logout() {
 
 .layout__spacer {
   flex: 1;
+}
+
+.layout__theme-btn {
+  color: var(--el-text-color-primary);
 }
 
 .layout__user {
