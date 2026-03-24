@@ -13,6 +13,7 @@ import {
   Grid,
   Stamp,
   DataAnalysis,
+  CollectionTag,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
@@ -61,6 +62,13 @@ const menuItems: MenuItemConfig[] = [
     requiredPermissions: ['audit:read'],
     permissionMode: 'all',
   },
+  {
+    index: '/tag-manage',
+    label: '标签管理',
+    icon: CollectionTag,
+    requiredPermissions: ['kb:edit'],
+    permissionMode: 'all',
+  },
   { index: '/common-components', label: '组件展示', icon: Grid },
 ]
 
@@ -79,6 +87,7 @@ const activeMenu = computed(() => {
   if (p.startsWith('/knowledge/create')) return '/knowledge/create'
   if (p.startsWith('/approval-center')) return '/approval-center'
   if (p.startsWith('/audit-center')) return '/audit-center'
+  if (p.startsWith('/tag-manage')) return '/tag-manage'
   if (p.startsWith('/knowledge/') && p !== '/knowledge') {
     return '/knowledge'
   }

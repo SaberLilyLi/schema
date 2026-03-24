@@ -384,6 +384,221 @@ Content-Type: application/json
 
 ---
 
+### 2.9 审批中心：待我审批
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/articles/approval/pending` |
+| **认证** | 需要 Bearer |
+| **权限** | `approval:approve` |
+
+**请求体（可选）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `page` | number | 页码，默认 `1` |
+| `pageSize` | number | 每页条数，默认 `20`，最大 `100` |
+| `q` | string | 关键词（标题/编号） |
+| `domain` | string | 条线筛选 |
+
+---
+
+### 2.10 审批中心：我发起的
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/articles/approval/initiated` |
+| **认证** | 需要 Bearer |
+| **权限** | `kb:submit` |
+
+**请求体（可选）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `page` | number | 页码 |
+| `pageSize` | number | 每页条数 |
+| `q` | string | 关键词（标题/编号） |
+| `domain` | string | 条线筛选 |
+| `workflowState` | string | 流程状态筛选 |
+
+---
+
+### 2.11 审批中心：历史审批记录
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/articles/approval/history` |
+| **认证** | 需要 Bearer |
+| **权限** | `approval:approve` |
+
+**请求体（可选）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `page` | number | 页码 |
+| `pageSize` | number | 每页条数 |
+| `q` | string | 关键词（标题/编号） |
+| `domain` | string | 条线筛选 |
+| `workflowState` | string | 审批结果（`approved` / `rejected` / `published`） |
+| `approver` | string | 审批人（用户名/显示名） |
+
+**列表新增字段：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `approverName` | string | 审批人名称 |
+
+---
+
+### 2.12 获取可编辑数据
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/articles/:id/editable` |
+| **认证** | 需要 Bearer |
+| **权限** | `kb:edit` |
+
+**成功 `data` 关键字段：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `articleId` | string | 知识 ID |
+| `title` | string | 标题 |
+| `domain` | string | 条线 |
+| `classification` | string | 密级 |
+| `currentVersion` | object | 当前版本可编辑内容 |
+| `editPolicy.mode` | string | `update_current` / `new_version` / `readonly` |
+| `editPolicy.reason` | string | 只读原因说明 |
+
+---
+
+### 2.13 保存编辑内容
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/articles/:id/save` |
+| **认证** | 需要 Bearer |
+| **权限** | `kb:edit` |
+
+**请求体：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `title` | string | 是 | 标题 |
+| `contentMd` | string | 是 | Markdown 正文 |
+| `domain` | string | 否 | 条线 |
+| `classification` | string | 否 | 密级 |
+| `changeSummary` | string | 否 | 变更说明 |
+| `visibilityPolicy` | object | 否 | 可见策略 |
+
+**保存规则：**
+
+- 当前版本为 `draft/rejected`：覆盖保存当前版本（`mode = update_current`）
+- 当前版本为 `published`：创建新版本草稿（`mode = new_version`）
+- 当前版本为 `submitted/approved`：拒绝保存（返回业务错误）
+
+---
+
+### 2.14 标签分页查询
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/tags/query` |
+| **认证** | 需要 Bearer |
+| **权限** | `kb:edit` |
+
+**请求体（可选）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `page` | number | 页码，默认 `1` |
+| `pageSize` | number | 每页条数，默认 `20`，最大 `100` |
+| `q` | string | 关键词（匹配标签名/含义） |
+
+**返回 `data.items[]` 字段：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 标签 ID |
+| `name` | string | 标签名 |
+| `color` | string | 颜色值（HEX） |
+| `meaning` | string | 标签含义 |
+| `visibleRoleCodes` | string[] | 可见角色编码列表 |
+
+---
+
+### 2.15 新建标签
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/tags/create` |
+| **认证** | 需要 Bearer |
+| **权限** | `kb:edit` |
+
+**请求体：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 标签名称（唯一） |
+| `color` | string | 否 | 颜色（默认 `#2458D2`） |
+| `meaning` | string | 否 | 标签含义说明 |
+| `visibleRoleCodes` | string[] | 否 | 可见角色编码列表，空数组表示全部可见 |
+
+---
+
+### 2.16 修改标签
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/tags/:id/update` |
+| **认证** | 需要 Bearer |
+| **权限** | `kb:edit` |
+
+**路径参数：**
+
+| 参数 | 说明 |
+|------|------|
+| `id` | 标签 MongoDB `ObjectId` |
+
+**请求体：** 同 `2.15`
+
+---
+
+### 2.17 标签管理-角色列表
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/tags/roles` |
+| **认证** | 需要 Bearer |
+| **权限** | `kb:edit` |
+
+**成功 `data`：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `code` | string | 角色编码 |
+| `name` | string | 角色名称 |
+
+---
+
+### 2.18 当前用户可见标签选项
+
+| 项目 | 说明 |
+|------|------|
+| **URL** | `POST /api/tags/options` |
+| **认证** | 需要 Bearer |
+| **权限** | 无额外权限（仅登录） |
+
+**成功 `data` 字段：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | string | 标签名称 |
+| `color` | string | 标签颜色 |
+| `meaning` | string | 标签含义 |
+
+---
+
 ## 3. 环境与调试
 
 | 变量 | 说明 |

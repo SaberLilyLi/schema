@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import * as authApi from '@/api/auth'
-import type { LoginUser, MeData } from '@/types/api'
+import type { LoginUser, MeRsp } from '@/types/interfaces/auth/rsp'
 import { getToken, setToken } from '@/api/http'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref<string | null>(getToken())
-  const user = ref<LoginUser | MeData | null>(null)
+  const user = ref<LoginUser | MeRsp | null>(null)
 
   const isLoggedIn = computed(() => Boolean(token.value))
   const displayLabel = computed(

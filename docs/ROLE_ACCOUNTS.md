@@ -56,6 +56,7 @@
 | 新建知识 | `/knowledge/create` | 需要 `kb:create` |
 | 审批中心 | `/approval-center` | 需要 `kb:submit` 或 `approval:approve` 任一权限 |
 | 审计中心 | `/audit-center` | 需要 `audit:read` |
+| 标签管理 | `/tag-manage` | 需要 `kb:edit` |
 | 组件展示 | `/common-components` | 登录后默认可见（演示页） |
 
 > 前端实现位置：`frontend/src/layouts/MainLayout.vue`，已改为“菜单配置 + 权限规则”统一控制，避免分散在多个 `v-if` 中。
@@ -64,8 +65,16 @@
 
 - “待我审批”页签：仅 `approval:approve` 可见
 - “我发起的”页签：仅 `kb:submit` 可见
+- “历史审批”页签：仅 `approval:approve` 可见（展示审批人）
 
 ## 7. 权限变更维护约定
 
 - 之后凡是涉及权限点新增/删除、角色权限调整、菜单显示逻辑调整，都必须同步更新本文件。
 - 同时新增对应需求变更记录文档，命名规则统一为：`任务名_版本.md`。
+
+## 8. 标签可见性权限说明
+
+- 标签管理（新增/修改/角色可见性配置/颜色/含义）需要 `kb:edit`。
+- 业务页面标签展示遵循标签的 `visibleRoleCodes`：
+  - 空值表示全部角色可见；
+  - 非空表示仅列表中角色可见。

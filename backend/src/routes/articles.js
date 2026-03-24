@@ -3,6 +3,8 @@ import mongoose from 'mongoose'
 import { KnowledgeArticle } from '../models/knowledgeArticle.js'
 import { ArticleVersion } from '../models/articleVersion.js'
 import { ArticleTag } from '../models/articleTag.js'
+import { Tag } from '../models/tag.js'
+import { User } from '../models/user.js'
 import { ok, fail } from '../utils/apiEnvelope.js'
 import { authenticate, requirePermission } from '../middleware/authenticate.js'
 import { appendAuditLog } from '../services/auditService.js'
@@ -21,6 +23,29 @@ function auditMeta(req, res) {
   }
 }
 
+function buildApprovalArticleFilter(payload) {
+  const { q, domain } = payload ?? {}
+  const filter = {}
+  if (domain && String(domain).trim()) {
+    filter.domain = String(domain).trim()
+  }
+  if (q && String(q).trim()) {
+    const safe = escapeRegex(String(q).trim())
+    const rx = new RegExp(safe, 'i')
+    filter.$or = [{ title: rx }, { articleNo: rx }]
+  }
+  return filter
+}
+
+function isTagVisibleForRoles(tagDoc, roleCodes) {
+  const visibleRoleCodes = Array.isArray(tagDoc?.visibleRoleCodes)
+    ? tagDoc.visibleRoleCodes
+    : []
+  if (!visibleRoleCodes.length) return true
+  const roleSet = new Set((Array.isArray(roleCodes) ? roleCodes : []).map((r) => String(r)))
+  return visibleRoleCodes.some((code) => roleSet.has(String(code)))
+}
+
 async function getArticleAndCurrentVersionOrFail(id) {
   const article = await KnowledgeArticle.findById(id)
   if (!article) {
@@ -34,6 +59,32 @@ async function getArticleAndCurrentVersionOrFail(id) {
     return { error: { message: '版本不存在', code: 40404, status: 404 } }
   }
   return { article, version }
+}
+
+async function upsertArticleTags(articleId, tagNames) {
+  const uniqueNames = Array.from(
+    new Set(
+      (Array.isArray(tagNames) ? tagNames : [])
+        .map((t) => String(t || '').trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ).slice(0, 20)
+
+  await ArticleTag.deleteMany({ articleId })
+  if (!uniqueNames.length) return
+
+  const tagDocs = await Promise.all(
+    uniqueNames.map(async (name) => {
+      const exist = await Tag.findOne({ name }).lean()
+      if (exist) return exist
+      return Tag.create({ name, color: '#2458D2' })
+    }),
+  )
+
+  await ArticleTag.insertMany(
+    tagDocs.map((t) => ({ articleId, tagId: t._id })),
+    { ordered: false },
+  )
 }
 
 articlesRouter.post(
@@ -73,7 +124,9 @@ articlesRouter.post(
     for (const link of tagLinks) {
       const aid = link.articleId.toString()
       if (!tagsByArticle[aid]) tagsByArticle[aid] = []
-      if (link.tagId?.name) tagsByArticle[aid].push(link.tagId.name)
+      if (link.tagId?.name && isTagVisibleForRoles(link.tagId, req.roles)) {
+        tagsByArticle[aid].push(link.tagId.name)
+      }
     }
 
     const rows = items.map((a) => ({
@@ -117,9 +170,16 @@ articlesRouter.post(
   async (req, res) => {
     const page = Math.max(1, Number(req.body?.page) || 1)
     const pageSize = Math.min(100, Math.max(1, Number(req.body?.pageSize) || 20))
+    const articleFilter = buildApprovalArticleFilter(req.body)
+    const articleIdFilter = {}
+    if (Object.keys(articleFilter).length > 0) {
+      const articleIds = await KnowledgeArticle.find(articleFilter).select('_id').lean()
+      articleIdFilter.articleId = { $in: articleIds.map((a) => a._id) }
+    }
 
     const versions = await ArticleVersion.find({
       workflowState: WORKFLOW_STATE.SUBMITTED,
+      ...articleIdFilter,
     })
       .sort({ submittedAt: -1 })
       .skip((page - 1) * pageSize)
@@ -128,6 +188,7 @@ articlesRouter.post(
 
     const total = await ArticleVersion.countDocuments({
       workflowState: WORKFLOW_STATE.SUBMITTED,
+      ...articleIdFilter,
     })
 
     const articleIds = versions.map((v) => v.articleId)
@@ -174,20 +235,36 @@ articlesRouter.post(
   async (req, res) => {
     const page = Math.max(1, Number(req.body?.page) || 1)
     const pageSize = Math.min(100, Math.max(1, Number(req.body?.pageSize) || 20))
-
-    const versions = await ArticleVersion.find({
+    const articleFilter = buildApprovalArticleFilter(req.body)
+    const versionFilter = {
       submittedBy: req.userId,
       submittedAt: { $exists: true, $ne: null },
-    })
+    }
+    if (req.body?.workflowState && String(req.body.workflowState).trim()) {
+      versionFilter.workflowState = String(req.body.workflowState).trim()
+    }
+
+    if (req.body?.approver && String(req.body.approver).trim()) {
+      const rx = new RegExp(escapeRegex(String(req.body.approver).trim()), 'i')
+      const approverIds = await User.find({
+        $or: [{ username: rx }, { displayName: rx }],
+      })
+        .select('_id')
+        .lean()
+      versionFilter.approvedBy = { $in: approverIds.map((u) => u._id) }
+    }
+    if (Object.keys(articleFilter).length > 0) {
+      const articleIds = await KnowledgeArticle.find(articleFilter).select('_id').lean()
+      versionFilter.articleId = { $in: articleIds.map((a) => a._id) }
+    }
+
+    const versions = await ArticleVersion.find(versionFilter)
       .sort({ submittedAt: -1 })
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .lean()
 
-    const total = await ArticleVersion.countDocuments({
-      submittedBy: req.userId,
-      submittedAt: { $exists: true, $ne: null },
-    })
+    const total = await ArticleVersion.countDocuments(versionFilter)
 
     const articleIds = versions.map((v) => v.articleId)
     const articles = await KnowledgeArticle.find({ _id: { $in: articleIds } }).lean()
@@ -219,6 +296,82 @@ articlesRouter.post(
       action: 'approval.initiated.read',
       resourceType: 'article',
       resourceId: 'initiated',
+      statusCode: 200,
+      success: true,
+      details: { page, pageSize },
+    })
+
+    return ok(res, { page, pageSize, total, items })
+  },
+)
+
+articlesRouter.post(
+  '/approval/history',
+  authenticate,
+  requirePermission('approval:approve'),
+  async (req, res) => {
+    const page = Math.max(1, Number(req.body?.page) || 1)
+    const pageSize = Math.min(100, Math.max(1, Number(req.body?.pageSize) || 20))
+    const articleFilter = buildApprovalArticleFilter(req.body)
+    const versionFilter = {
+      workflowState: { $in: [WORKFLOW_STATE.APPROVED, WORKFLOW_STATE.REJECTED, WORKFLOW_STATE.PUBLISHED] },
+    }
+
+    if (req.body?.workflowState && String(req.body.workflowState).trim()) {
+      versionFilter.workflowState = String(req.body.workflowState).trim()
+    }
+
+    if (Object.keys(articleFilter).length > 0) {
+      const articleIds = await KnowledgeArticle.find(articleFilter).select('_id').lean()
+      versionFilter.articleId = { $in: articleIds.map((a) => a._id) }
+    }
+
+    const versions = await ArticleVersion.find(versionFilter)
+      .sort({ approvedAt: -1, submittedAt: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .lean()
+
+    const total = await ArticleVersion.countDocuments(versionFilter)
+
+    const articleIds = versions.map((v) => v.articleId)
+    const approverIds = versions.map((v) => v.approvedBy).filter(Boolean)
+    const [articles, approvers] = await Promise.all([
+      KnowledgeArticle.find({ _id: { $in: articleIds } }).lean(),
+      User.find({ _id: { $in: approverIds } }).select('username displayName').lean(),
+    ])
+    const articleById = new Map(articles.map((a) => [String(a._id), a]))
+    const approverById = new Map(
+      approvers.map((u) => [String(u._id), u.displayName || u.username || '']),
+    )
+
+    const items = versions
+      .map((v) => {
+        const a = articleById.get(String(v.articleId))
+        if (!a) return null
+        return {
+          id: String(a._id),
+          articleNo: a.articleNo,
+          title: a.title,
+          domain: a.domain,
+          classification: a.classification,
+          status: a.status,
+          workflowState: v.workflowState,
+          versionNo: v.versionNo,
+          submittedAt: v.submittedAt ?? null,
+          approvedAt: v.approvedAt ?? null,
+          publishedAt: v.publishedAt ?? null,
+          approverName: v.approvedBy ? approverById.get(String(v.approvedBy)) ?? '' : '',
+          updatedAt: a.updatedAt,
+        }
+      })
+      .filter(Boolean)
+
+    await appendAuditLog({
+      ...auditMeta(req, res),
+      action: 'approval.history.read',
+      resourceType: 'article',
+      resourceId: 'history',
       statusCode: 200,
       success: true,
       details: { page, pageSize },
@@ -305,6 +458,170 @@ articlesRouter.post(
       submittedAt: version.submittedAt ?? null,
       approvedAt: version.approvedAt ?? null,
       publishedAt: version.publishedAt ?? null,
+    })
+  },
+)
+
+articlesRouter.post(
+  '/:id/editable',
+  authenticate,
+  requirePermission('kb:edit'),
+  async (req, res) => {
+    const { id } = req.params
+    if (!mongoose.isValidObjectId(id)) {
+      return fail(res, '无效的文章 ID', 40002, 400)
+    }
+
+    const result = await getArticleAndCurrentVersionOrFail(id)
+    if (result.error) {
+      return fail(res, result.error.message, result.error.code, result.error.status)
+    }
+    const { article, version } = result
+    const tagLinks = await ArticleTag.find({ articleId: article._id })
+      .populate('tagId')
+      .lean()
+    const tags = tagLinks
+      .filter((l) => isTagVisibleForRoles(l.tagId, req.roles))
+      .map((l) => l.tagId?.name)
+      .filter(Boolean)
+
+    let mode = 'readonly'
+    let reason = ''
+    if ([WORKFLOW_STATE.DRAFT, WORKFLOW_STATE.REJECTED].includes(version.workflowState)) {
+      mode = 'update_current'
+    } else if (version.workflowState === WORKFLOW_STATE.PUBLISHED) {
+      mode = 'new_version'
+    } else {
+      reason = '审批中或已审批版本不可直接编辑'
+    }
+
+    await appendAuditLog({
+      ...auditMeta(req, res),
+      action: 'kb.edit.read',
+      resourceType: 'article',
+      resourceId: article.articleNo,
+      statusCode: 200,
+      success: true,
+      details: { mode, versionNo: version.versionNo, workflowState: version.workflowState },
+    })
+
+    return ok(res, {
+      articleId: article._id.toString(),
+      articleNo: article.articleNo,
+      title: article.title,
+      domain: article.domain,
+      classification: article.classification,
+      visibilityPolicy: article.visibilityPolicy ?? {},
+      tags,
+      currentVersion: {
+        id: version._id.toString(),
+        versionNo: version.versionNo,
+        changeSummary: version.changeSummary ?? '',
+        contentMd: version.contentMd ?? '',
+        workflowState: version.workflowState,
+      },
+      editPolicy: {
+        mode,
+        reason,
+      },
+    })
+  },
+)
+
+articlesRouter.post(
+  '/:id/save',
+  authenticate,
+  requirePermission('kb:edit'),
+  async (req, res) => {
+    const { id } = req.params
+    if (!mongoose.isValidObjectId(id)) {
+      return fail(res, '无效的文章 ID', 40002, 400)
+    }
+
+    const title = String(req.body?.title ?? '').trim()
+    const contentMd = String(req.body?.contentMd ?? '').trim()
+    const domain = String(req.body?.domain ?? '').trim()
+    const classification = String(req.body?.classification ?? 'internal').trim() || 'internal'
+    const changeSummary = String(req.body?.changeSummary ?? '').trim() || '编辑更新'
+    const tags = Array.isArray(req.body?.tags) ? req.body.tags : []
+    const visibilityPolicy =
+      req.body?.visibilityPolicy && typeof req.body.visibilityPolicy === 'object'
+        ? req.body.visibilityPolicy
+        : {}
+
+    if (!title || !contentMd) {
+      return fail(res, 'title 与 contentMd 必填', 40003, 400)
+    }
+
+    const result = await getArticleAndCurrentVersionOrFail(id)
+    if (result.error) {
+      return fail(res, result.error.message, result.error.code, result.error.status)
+    }
+    const { article, version } = result
+
+    let mode = 'readonly'
+    if ([WORKFLOW_STATE.DRAFT, WORKFLOW_STATE.REJECTED].includes(version.workflowState)) {
+      mode = 'update_current'
+    } else if (version.workflowState === WORKFLOW_STATE.PUBLISHED) {
+      mode = 'new_version'
+    }
+
+    if (mode === 'readonly') {
+      return fail(res, '审批中或已审批版本不可直接编辑', 40017, 400)
+    }
+
+    article.title = title
+    article.domain = domain
+    article.classification = classification
+    article.visibilityPolicy = visibilityPolicy
+    article.searchText = `${title}\n${contentMd}`.slice(0, 50000)
+    article.updatedBy = req.userId
+
+    let savedVersion = version
+    if (mode === 'update_current') {
+      version.contentMd = contentMd
+      version.changeSummary = changeSummary
+      version.contentHtml = ''
+      await version.save()
+      article.status = ARTICLE_STATUS.DRAFT
+    } else {
+      const latest = await ArticleVersion.find({ articleId: article._id })
+        .sort({ versionNo: -1 })
+        .limit(1)
+        .lean()
+      const nextVersionNo = (latest[0]?.versionNo ?? version.versionNo) + 1
+      savedVersion = await ArticleVersion.create({
+        articleId: article._id,
+        versionNo: nextVersionNo,
+        contentMd,
+        contentHtml: '',
+        changeSummary,
+        workflowState: WORKFLOW_STATE.DRAFT,
+      })
+      article.currentVersionId = savedVersion._id
+      article.status = ARTICLE_STATUS.DRAFT
+    }
+
+    await article.save()
+    await upsertArticleTags(article._id, tags)
+
+    await appendAuditLog({
+      ...auditMeta(req, res),
+      action: mode === 'new_version' ? 'kb.version.create' : 'kb.edit.save',
+      resourceType: 'article',
+      resourceId: article.articleNo,
+      statusCode: 200,
+      success: true,
+      details: { mode, versionNo: savedVersion.versionNo },
+    })
+
+    return ok(res, {
+      articleId: article._id.toString(),
+      articleNo: article.articleNo,
+      status: article.status,
+      currentVersionId: savedVersion._id.toString(),
+      versionNo: savedVersion.versionNo,
+      mode,
     })
   },
 )
@@ -431,6 +748,8 @@ articlesRouter.post(
     }
 
     version.workflowState = WORKFLOW_STATE.REJECTED
+    version.approvedBy = req.userId
+    version.approvedAt = new Date()
     version.changeSummary = `${version.changeSummary || ''} | 驳回：${reason}`.slice(0, 500)
     await version.save()
 
@@ -573,6 +892,7 @@ articlesRouter.post(
   async (req, res) => {
     const { title, domain, classification, contentMd, articleNo } =
       req.body ?? {}
+    const tags = Array.isArray(req.body?.tags) ? req.body.tags : []
     if (!title || !contentMd) {
       return fail(res, 'title 与 contentMd 必填', 40003, 400)
     }
@@ -604,6 +924,7 @@ articlesRouter.post(
 
     article.currentVersionId = ver._id
     await article.save()
+    await upsertArticleTags(article._id, tags)
 
     await appendAuditLog({
       ...auditMeta(req, res),

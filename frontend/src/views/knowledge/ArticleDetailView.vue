@@ -12,7 +12,7 @@ import {
   rejectArticle,
   submitArticle,
 } from '@/api/articles'
-import type { ArticleDetailData, ArticleVersionItem } from '@/types/api'
+import type { ArticleDetailRsp, ArticleVersionItem } from '@/types/interfaces/article/rsp'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -20,7 +20,7 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const loading = ref(true)
-const detail = ref<ArticleDetailData | null>(null)
+const detail = ref<ArticleDetailRsp | null>(null)
 const htmlContent = ref('')
 const versions = ref<ArticleVersionItem[]>([])
 const versionsVisible = ref(false)
@@ -87,6 +87,13 @@ const canPublish = computed(
       detail.value?.currentVersion?.workflowState || '',
     ),
 )
+const canEdit = computed(
+  () =>
+    userStore.hasPermission('kb:edit') &&
+    ['draft', 'rejected', 'published'].includes(
+      detail.value?.currentVersion?.workflowState || '',
+    ),
+)
 
 async function doSubmit() {
   if (!detail.value) return
@@ -150,6 +157,11 @@ async function doPublish() {
     actionLoading.value = false
   }
 }
+
+function goEdit() {
+  if (!detail.value) return
+  router.push({ name: 'knowledge-edit', params: { id: detail.value.id } })
+}
 </script>
 
 <template>
@@ -174,6 +186,15 @@ async function doPublish() {
             @click="versionsVisible = true"
           >
             版本列表
+          </el-button>
+          <el-button
+            v-if="canEdit"
+            size="small"
+            type="primary"
+            plain
+            @click="goEdit"
+          >
+            编辑
           </el-button>
           <el-button
             v-if="canSubmit"

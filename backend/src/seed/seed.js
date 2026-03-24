@@ -177,10 +177,30 @@ async function seed() {
   )
 
   const tags = await Tag.insertMany([
-    { name: '反洗钱', color: '#2458D2' },
-    { name: '对公', color: '#1890ff' },
-    { name: '柜面', color: '#52c41a' },
-    { name: '合规', color: '#faad14' },
+    {
+      name: '反洗钱',
+      color: '#2458D2',
+      meaning: '涉及客户身份识别、可疑交易监测与报送',
+      visibleRoleCodes: ['kb_admin', 'reviewer', 'auditor'],
+    },
+    {
+      name: '对公',
+      color: '#1890ff',
+      meaning: '公司/机构客户相关制度与流程',
+      visibleRoleCodes: [],
+    },
+    {
+      name: '柜面',
+      color: '#52c41a',
+      meaning: '网点柜面业务办理规范',
+      visibleRoleCodes: [],
+    },
+    {
+      name: '合规',
+      color: '#faad14',
+      meaning: '监管制度、内控与合规要求',
+      visibleRoleCodes: ['kb_admin', 'reviewer', 'auditor'],
+    },
   ])
   const tagByName = Object.fromEntries(tags.map((t) => [t.name, t]))
 

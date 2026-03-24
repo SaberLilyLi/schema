@@ -50,9 +50,15 @@ const router = createRouter({
           meta: { title: '审计中心', permission: 'audit:read' },
         },
         {
+          path: 'tag-manage',
+          name: 'tag-manage',
+          component: () => import('@/views/tags/TagManageView.vue'),
+          meta: { title: '标签管理', permission: 'kb:edit' },
+        },
+        {
           path: 'knowledge/create',
           name: 'knowledge-create',
-          component: () => import('@/views/knowledge/ArticleEditorView.vue'),
+          component: () => import('@/views/knowledge/ArticleEditorPage.vue'),
           meta: { title: '新建知识', permission: 'kb:create' },
         },
         {
@@ -60,6 +66,12 @@ const router = createRouter({
           name: 'knowledge-detail',
           component: () => import('@/views/knowledge/ArticleDetailView.vue'),
           meta: { title: '知识详情', permission: 'kb:read' },
+        },
+        {
+          path: 'knowledge/:id/edit',
+          name: 'knowledge-edit',
+          component: () => import('@/views/knowledge/ArticleEditorPage.vue'),
+          meta: { title: '编辑知识', permission: 'kb:edit' },
         },
         {
           path: 'common-components',

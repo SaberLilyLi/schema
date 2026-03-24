@@ -5,7 +5,7 @@ import CommonPages from '@/components/common/commonPages/CommonPages.vue'
 import type { SearchItemConfig } from '@/components/common/commonSearch/types'
 import type { CommonTableColumn } from '@/components/common/commonTable/types'
 import { fetchAuditLogDetail, fetchAuditLogs } from '@/api/audit'
-import type { AuditLogDetailData, AuditLogListItem } from '@/types/api'
+import type { AuditLogDetailRsp, AuditLogListItem } from '@/types/interfaces/audit/rsp'
 
 const TEXT = {
   actor: '\u64cd\u4f5c\u4eba',
@@ -37,7 +37,7 @@ const page = ref(1)
 const pageSize = ref(20)
 const detailLoading = ref(false)
 const detailVisible = ref(false)
-const detail = ref<AuditLogDetailData | null>(null)
+const detail = ref<AuditLogDetailRsp | null>(null)
 
 const searchModest = ref<Record<string, unknown>>({
   actor: '',

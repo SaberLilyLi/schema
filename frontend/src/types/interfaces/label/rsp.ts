@@ -1,0 +1,5 @@
+export type { LabelItem, FetchLabelListRsp as LabelListRsp } from './fetchLabelList/rsp'
+export type { CreateLabelRsp as LabelSaveRsp } from './createLabel/rsp'
+export type { UpdateLabelRsp } from './updateLabel/rsp'
+export type { LabelRoleItem, FetchLabelRolesRsp } from './fetchLabelRoles/rsp'
+export type { LabelOptionItem, FetchVisibleLabelOptionsRsp } from './fetchVisibleLabelOptions/rsp'

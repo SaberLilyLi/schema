@@ -98,6 +98,36 @@ export interface WorkflowActionData {
   workflowState: string
 }
 
+export interface ArticleEditableData {
+  articleId: string
+  articleNo: string
+  title: string
+  domain: string
+  classification: string
+  visibilityPolicy: Record<string, unknown>
+  tags: string[]
+  currentVersion: {
+    id: string
+    versionNo: number
+    changeSummary: string
+    contentMd: string
+    workflowState: string
+  }
+  editPolicy: {
+    mode: 'update_current' | 'new_version' | 'readonly'
+    reason: string
+  }
+}
+
+export interface ArticleSaveData {
+  articleId: string
+  articleNo: string
+  status: string
+  currentVersionId: string
+  versionNo: number
+  mode: 'update_current' | 'new_version'
+}
+
 export interface ApprovalListItem {
   id: string
   articleNo: string
@@ -110,6 +140,7 @@ export interface ApprovalListItem {
   submittedAt: string | null
   approvedAt?: string | null
   publishedAt?: string | null
+  approverName?: string | null
   updatedAt: string
 }
 
@@ -157,4 +188,26 @@ export interface AuditLogDetailData {
   details: Record<string, unknown>
   prevHash: string
   recordHash: string
+}
+
+export interface TagItem {
+  id: string
+  name: string
+  color: string
+  meaning: string
+  visibleRoleCodes: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TagListData {
+  page: number
+  pageSize: number
+  total: number
+  items: TagItem[]
+}
+
+export interface TagRoleItem {
+  code: string
+  name: string
 }
